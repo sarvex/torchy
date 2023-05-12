@@ -244,12 +244,10 @@ class Test:
             self.result.output = str(e)
         
     def getFullName(self):
-        return self.suite.config.name + ' :: ' + '/'.join(self.path_in_suite)
+        return f'{self.suite.config.name} :: ' + '/'.join(self.path_in_suite)
 
     def getFilePath(self):
-        if self.file_path:
-            return self.file_path
-        return self.getSourcePath()
+        return self.file_path if self.file_path else self.getSourcePath()
 
     def getSourcePath(self):
         return self.suite.getSourcePath(self.path_in_suite)
@@ -307,12 +305,12 @@ class Test:
             return False
 
         # Check the requirements after removing the limiting features (#2)
-        featuresMinusLimits = [f for f in self.config.available_features
-                               if not f in self.config.limit_to_features]
-        if not self.getMissingRequiredFeaturesFromList(featuresMinusLimits):
-            return False
-
-        return True
+        featuresMinusLimits = [
+            f
+            for f in self.config.available_features
+            if f not in self.config.limit_to_features
+        ]
+        return bool(self.getMissingRequiredFeaturesFromList(featuresMinusLimits))
 
     def getMissingRequiredFeaturesFromList(self, features):
         try:
@@ -368,9 +366,9 @@ class Test:
         safe_name = self.suite.name.replace(".","-")
 
         if safe_test_path:
-            class_name = safe_name + "." + "/".join(safe_test_path) 
+            class_name = f"{safe_name}." + "/".join(safe_test_path)
         else:
-            class_name = safe_name + "." + safe_name
+            class_name = f"{safe_name}.{safe_name}"
         class_name = quoteattr(class_name)
         testcase_template = '<testcase classname={class_name} name={test_name} time="{time:.2f}"'
         elapsed_time = self.result.elapsed if self.result.elapsed is not None else 0.0
@@ -387,12 +385,11 @@ class Test:
             fil.write(encoded_output.replace("]]>", "]]]]><![CDATA[>"))
             fil.write("]]></failure>\n</testcase>")
         elif self.result.code == UNSUPPORTED:
-            unsupported_features = self.getMissingRequiredFeatures()
-            if unsupported_features:
+            if unsupported_features := self.getMissingRequiredFeatures():
                 skip_message = "Skipping because of: " + ", ".join(unsupported_features)
             else:
                 skip_message = "Skipping because of configuration."
 
-            fil.write(">\n\t<skipped message={} />\n</testcase>\n".format(quoteattr(skip_message)))
+            fil.write(f">\n\t<skipped message={quoteattr(skip_message)} />\n</testcase>\n")
         else:
             fil.write("/>")

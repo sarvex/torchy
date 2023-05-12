@@ -43,10 +43,7 @@ class ShLexer:
         return GlobItem(chunk) if '*' in chunk or '?' in chunk else chunk
         
     def lex_arg_slow(self, c):
-        if c in "'\"":
-            str = self.lex_arg_quoted(c)
-        else:
-            str = c
+        str = self.lex_arg_quoted(c) if c in "'\"" else c
         unquoted_glob_char = False
         quoted_glob_char = False
         while self.pos != self.end:
@@ -66,8 +63,8 @@ class ShLexer:
                 num = int(str)
                 tok = self.lex_one_token()
                 assert isinstance(tok, tuple) and len(tok) == 1
-                return (tok[0], num)                    
-            elif c == '"' or c == "'":
+                return (tok[0], num)
+            elif c in ['"', "'"]:
                 self.eat()
                 quoted_arg = self.lex_arg_quoted(c)
                 if '*' in quoted_arg or '?' in quoted_arg:
@@ -153,28 +150,19 @@ class ShLexer:
         if c == ';':
             return (c,)
         if c == '|':
-            if self.maybe_eat('|'):
-                return ('||',)
-            return (c,)
+            return ('||', ) if self.maybe_eat('|') else (c, )
         if c == '&':
             if self.maybe_eat('&'):
                 return ('&&',)
-            if self.maybe_eat('>'): 
-                return ('&>',)
-            return (c,)
+            return ('&>', ) if self.maybe_eat('>') else (c, )
         if c == '>':
             if self.maybe_eat('&'):
                 return ('>&',)
-            if self.maybe_eat('>'):
-                return ('>>',)
-            return (c,)
+            return ('>>', ) if self.maybe_eat('>') else (c, )
         if c == '<':
             if self.maybe_eat('&'):
                 return ('<&',)
-            if self.maybe_eat('>'):
-                return ('<<',)
-            return (c,)
-
+            return ('<<', ) if self.maybe_eat('>') else (c, )
         return self.lex_arg(c)
 
     def lex(self):
@@ -209,7 +197,7 @@ class ShParser:
             raise ValueError("empty command!")
         if isinstance(tok, tuple):
             raise ValueError("syntax error near unexpected token %r" % tok[0])
-        
+
         args = [tok]
         redirects = []
         while 1:
@@ -228,14 +216,14 @@ class ShParser:
             assert isinstance(tok, tuple)
             if tok[0] in ('|',';','&','||','&&'):
                 break
-            
+
             # Otherwise it must be a redirection.
             op = self.lex()
-            arg = self.lex()
-            if not arg:
-                raise ValueError("syntax error near token %r" % op[0])
-            redirects.append((op, arg))
+            if arg := self.lex():
+                redirects.append((op, arg))
 
+            else:
+                raise ValueError("syntax error near token %r" % op[0])
         return Command(args, redirects)
 
     def parse_pipeline(self):

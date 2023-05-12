@@ -28,20 +28,17 @@ class TestingConfig:
                      'TEMPDIR', 'AVRLIT_BOARD', 'AVRLIT_PORT',
                      'FILECHECK_DUMP_INPUT_ON_FAILURE']
         for var in pass_vars:
-            val = os.environ.get(var, '')
-            # Check for empty string as some variables such as LD_PRELOAD cannot be empty
-            # ('') for OS's such as OpenBSD.
-            if val:
+            if val := os.environ.get(var, ''):
                 environment[var] = val
 
         if sys.platform == 'win32':
-            environment.update({
-                    'INCLUDE' : os.environ.get('INCLUDE',''),
-                    'PATHEXT' : os.environ.get('PATHEXT',''),
-                    'PYTHONUNBUFFERED' : '1',
-                    'TEMP' : os.environ.get('TEMP',''),
-                    'TMP' : os.environ.get('TMP',''),
-                    })
+            environment |= {
+                'INCLUDE': os.environ.get('INCLUDE', ''),
+                'PATHEXT': os.environ.get('PATHEXT', ''),
+                'PYTHONUNBUFFERED': '1',
+                'TEMP': os.environ.get('TEMP', ''),
+                'TMP': os.environ.get('TMP', ''),
+            }
 
         # Set the default available features based on the LitConfig.
         available_features = []
@@ -73,13 +70,11 @@ class TestingConfig:
 
         # Load the config script data.
         data = None
-        f = open(path)
-        try:
-            data = f.read()
-        except:
-            litConfig.fatal('unable to load config file: %r' % (path,))
-        f.close()
-
+        with open(path) as f:
+            try:
+                data = f.read()
+            except:
+                litConfig.fatal('unable to load config file: %r' % (path,))
         # Execute the config script to initialize the object.
         cfg_globals = dict(globals())
         cfg_globals['config'] = self
@@ -148,10 +143,7 @@ class TestingConfig:
     @property
     def root(self):
         """root attribute - The root configuration for the test suite."""
-        if self.parent is None:
-            return self
-        else:
-            return self.parent.root
+        return self if self.parent is None else self.parent.root
 
 class SubstituteCaptures:
     """

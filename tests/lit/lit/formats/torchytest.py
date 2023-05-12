@@ -24,11 +24,11 @@ def executeCommand(command, env={}):
   try:
     out = str(out.decode('ascii'))
   except:
-    out = str(out)
+    out = out
   try:
     err = str(err.decode('ascii'))
   except:
-    err = str(err)
+    err = err
   return out, err, exit_code
 
 
@@ -63,7 +63,7 @@ class TorchyTest(TestFormat):
       return lit.Test.UNSUPPORTED, out
 
     if err or exit_code != 0:
-      return lit.Test.FAIL, err + f'\nexit code: {exit_code}'
+      return lit.Test.FAIL, f'{err}\nexit code: {exit_code}'
 
     err,msg = check(out, 'Torchy TS', ['python', test, '--torchy'])
     if err != lit.Test.PASS:
@@ -71,7 +71,4 @@ class TorchyTest(TestFormat):
 
     err,msg = check(out, 'Torchy Interpreter', ['python', test, '--torchy'],
                     {'TORCHY_FORCE_INTERPRETER' : '1'})
-    if err != lit.Test.PASS:
-      return err, msg
-
-    return lit.Test.PASS, ''
+    return (err, msg) if err != lit.Test.PASS else (lit.Test.PASS, '')

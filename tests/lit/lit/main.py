@@ -51,8 +51,8 @@ class TestingProgressDisplay(object):
                                     test.getFullName())
 
         shouldShow = test.result.code.isFailure or \
-            self.opts.showAllOutput or \
-            (not self.opts.quiet and not self.opts.succinct)
+                self.opts.showAllOutput or \
+                (not self.opts.quiet and not self.opts.succinct)
         if not shouldShow:
             return
 
@@ -66,33 +66,30 @@ class TestingProgressDisplay(object):
 
         # Show the test failure output, if requested.
         if (test.result.code.isFailure and self.opts.showOutput) or \
-           self.opts.showAllOutput:
+               self.opts.showAllOutput:
             if test.result.code.isFailure:
-                print("%s TEST '%s' FAILED %s" % ('*'*20, test.getFullName(),
-                                                  '*'*20))
+                print(f"{'*' * 20} TEST '{test.getFullName()}' FAILED {'*' * 20}")
             print(test.result.output)
             print("*" * 20)
 
         # Report test metrics, if present.
         if test.result.metrics:
-            print("%s TEST '%s' RESULTS %s" % ('*'*10, test.getFullName(),
-                                               '*'*10))
+            print(f"{'*' * 10} TEST '{test.getFullName()}' RESULTS {'*' * 10}")
             items = sorted(test.result.metrics.items())
             for metric_name, value in items:
-                print('%s: %s ' % (metric_name, value.format()))
+                print(f'{metric_name}: {value.format()} ')
             print("*" * 10)
 
         # Report micro-tests, if present
         if test.result.microResults:
             items = sorted(test.result.microResults.items())
             for micro_test_name, micro_test in items:
-                print("%s MICRO-TEST: %s" %
-                         ('*'*3, micro_test_name))
-   
+                print(f"{'*' * 3} MICRO-TEST: {micro_test_name}")
+
                 if micro_test.metrics:
                     sorted_metrics = sorted(micro_test.metrics.items())
                     for metric_name, value in sorted_metrics:
-                        print('    %s:  %s ' % (metric_name, value.format()))
+                        print(f'    {metric_name}:  {value.format()} ')
 
         # Ensure the output is flushed.
         sys.stdout.flush()
@@ -104,10 +101,7 @@ def write_test_results(run, lit_config, testing_time, output_path):
         lit_config.fatal('test output unsupported with Python 2.5')
 
     # Construct the data we will write.
-    data = {}
-    # Encode the current lit version as a schema version.
-    data['__version__'] = lit.__versioninfo__
-    data['elapsed'] = testing_time
+    data = {'__version__': lit.__versioninfo__, 'elapsed': testing_time}
     # FIXME: Record some information on the lit configuration used?
     # FIXME: Record information from the individual test suites?
 
@@ -131,7 +125,7 @@ def write_test_results(run, lit_config, testing_time, output_path):
             for key, micro_test in test.result.microResults.items():
                 # Expand parent test name with micro test name
                 parent_name = test.getFullName()
-                micro_full_name = parent_name + ':' + key
+                micro_full_name = f'{parent_name}:{key}'
 
                 micro_test_data = {
                     'name' : micro_full_name,

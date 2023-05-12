@@ -9,7 +9,7 @@ from tools.codegen.gen import *
 from tools.codegen.api import types
 import torch
 
-yaml_path = PYTORCH + '/aten/src/ATen/native/native_functions.yaml'
+yaml_path = f'{PYTORCH}/aten/src/ATen/native/native_functions.yaml'
 native_functions = parse_native_yaml(yaml_path)
 
 
@@ -38,7 +38,7 @@ def mk_arg(arg, tensors):
     'c10::optional<at::ScalarType>' : False,
   }
   if 'Tensor' in type:
-    return get(tensors, type + ' &')
+    return get(tensors, f'{type} &')
   if type in dispatch_types:
     if dispatch_types[type]:
       type += ' &'
@@ -51,9 +51,7 @@ def mk_arg(arg, tensors):
     return 'Dimname::wildcard()'
   if type == 'at::DimnameList':
     return '{Dimname::wildcard()}'
-  if type == 'at::Device':
-    return 'Device("cpu")'
-  return '{}'
+  return 'Device("cpu")' if type == 'at::Device' else '{}'
 
 
 all_functions = []

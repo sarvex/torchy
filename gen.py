@@ -9,7 +9,7 @@ sys.path.append(PYTORCH)
 from tools.codegen.gen import *
 from tools.codegen.api import types
 
-yaml_path = PYTORCH + '/aten/src/ATen/native/native_functions.yaml'
+yaml_path = f'{PYTORCH}/aten/src/ATen/native/native_functions.yaml'
 native_functions = parse_native_yaml(yaml_path)
 
 dtype_exceptions = {
@@ -59,9 +59,7 @@ def skip_fn(fn):
   }
   dispatcher_sig = DispatcherSignature.from_schema(fn.func)
   rettype = dispatcher_sig.returns_type().cpp_type()
-  if rettype not in allowed_ret_types:
-    return True
-  return False
+  return rettype not in allowed_ret_types
 
 def wrapper_name(fn):
   return 'wrap_' + str(fn.func.name).replace('.', '_')
@@ -70,10 +68,8 @@ def fn_enum(fn):
   return 'H_' + str(fn.func.name).replace('.', '_').upper()
 
 def get_arg_of_type(args, type):
-  for arg in args:
-    if arg.type.cpp_type(strip_ref=True) == type:
-      return arg
-  return None
+  return next(
+      (arg for arg in args if arg.type.cpp_type(strip_ref=True) == type), None)
 
 def maybe_tensor(type):
   types = {
@@ -105,9 +101,7 @@ def is_type_arg(arg):
 
 def to_dtype(arg):
   type = arg.type.cpp_type()
-  if type == 'at::ScalarType':
-    return arg.expr
-  return f'{arg.expr}.dtype()'
+  return arg.expr if type == 'at::ScalarType' else f'{arg.expr}.dtype()'
 
 def to_scalartype(arg):
   type = arg.type.remove_const_ref().cpp_type()
@@ -121,7 +115,7 @@ def to_scalartype(arg):
 def mk_dtype_infer(type, all_args):
   args = [arg for arg in all_args if is_type_arg(arg)]
 
-  if type[0:3] == 'ALL':
+  if type[:3] == 'ALL':
     return f'k{type[4:]}'
   if type == 'BOOL2INT':
     return f'bool_to_int({args[0].expr}.scalar_type())'
@@ -141,8 +135,6 @@ def mk_dtype_infer(type, all_args):
     return to_dtype(args[3])
   if type == 'BOOLBYTE':
     return f'bool_byte({args[0].expr}.scalar_type())'
-  if type == 'BOOL2INT':
-    return f'bool_to_int({args[0].expr}.scalar_type())'
   if type == 'INTEGRAL2INT':
     return f'integrals_to_int({args[0].expr}.scalar_type())'
   if type == 'TO_COMPLEX':
@@ -194,24 +186,19 @@ def get_dtype_arg(all_tensors, args, name):
   elif tensor_lst:
     device = f'device_of({tensor_lst[0]})'
 
-  device_arg = get_arg_of_type(args, 'at::Device')
-  if device_arg:
+  if device_arg := get_arg_of_type(args, 'at::Device'):
     device = device_arg.expr
 
-  device_arg = get_arg_of_type(args, 'c10::optional<at::Device>')
-  if device_arg:
+  if device_arg := get_arg_of_type(args, 'c10::optional<at::Device>'):
     device = device_arg.expr
 
-  dtype_fn = get_dtype_infer_fn(fn)
-  if dtype_fn:
+  if dtype_fn := get_dtype_infer_fn(fn):
     dtype = mk_dtype_infer(dtype_fn, args)
   else:
-    dtype_arg = get_arg_of_type(args, 'at::ScalarType')
-    if dtype_arg:
+    if dtype_arg := get_arg_of_type(args, 'at::ScalarType'):
       dtype = dtype_arg.expr
 
-    dtype_arg = get_arg_of_type(args, 'c10::optional<at::ScalarType>')
-    if dtype_arg:
+    if dtype_arg := get_arg_of_type(args, 'c10::optional<at::ScalarType>'):
       dtype = dtype_arg.expr
 
   tensor_arg = get_arg_of_type(args, 'at::TensorList')
@@ -417,7 +404,7 @@ def gen_dispatch_wrapper(fn):
 
   rettype = dispatcher_sig.returns_type().cpp_type()
   fndecl = sig.defn(prefix='wrap_', is_redispatching_fn=True)
-  fndecl = fndecl.replace('wrap_' + sig.name(), wrapper_name(fn))
+  fndecl = fndecl.replace(f'wrap_{sig.name()}', wrapper_name(fn))
 
   args = translate(sig.arguments(), dispatcher_sig.arguments())
   register_args = ''.join([f'trace.append_arg({move_if_needed(a.expr, a)});' for a in args])
@@ -466,22 +453,26 @@ def gen_dispatch_wrapper(fn):
 
   # in-place op. returns one of the arguments
   # e.g. mul_ or mul_out
-  assert rettype == 'at::Tensor &' or rettype == 'const at::Tensor &'
+  assert rettype in ['at::Tensor &', 'const at::Tensor &']
   assert tensor_args
   ret = fn_output(fn)
 
   keeps_shape = 'false'
-  if (shape_fn == 'EQ_FIRST' and len(tensor_args) >= 1 and tensor_args[0].expr == ret) or\
-     (shape_fn == 'EQ_SECOND' and len(tensor_args) >= 2 and tensor_args[1].expr == ret) or\
-     (shape_fn == 'EQ_THIRD' and len(tensor_args) >= 3 and tensor_args[2].expr == ret):
+  if (shape_fn == 'EQ_FIRST' and tensor_args and tensor_args[0].expr == ret
+      or (shape_fn == 'EQ_SECOND' and len(tensor_args) >= 2
+          and tensor_args[1].expr == ret)
+      or (shape_fn == 'EQ_THIRD' and len(tensor_args) >= 3
+          and tensor_args[2].expr == ret)):
     keeps_shape = 'true'
   elif shape_fn:
     keeps_shape = f'eq_shapes({ret}, {mk_shape_infer(shape_fn, args)})'
 
   keeps_strides = 'false'
-  if (strides_fn == 'EQ_FIRST' and len(tensor_args) >= 1 and tensor_args[0].expr == ret) or\
-     (strides_fn == 'EQ_SECOND' and len(tensor_args) >= 2 and tensor_args[1].expr == ret) or\
-     (strides_fn == 'EQ_THIRD' and len(tensor_args) >= 3 and tensor_args[2].expr == ret):
+  if (strides_fn == 'EQ_FIRST' and tensor_args and tensor_args[0].expr == ret
+      or (strides_fn == 'EQ_SECOND' and len(tensor_args) >= 2
+          and tensor_args[1].expr == ret)
+      or (strides_fn == 'EQ_THIRD' and len(tensor_args) >= 3
+          and tensor_args[2].expr == ret)):
     keeps_strides = 'true'
   elif strides_fn:
     keeps_strides = f'eq_shapes({ret}, {mk_strides_infer(strides_fn, args, ret)})'
@@ -533,15 +524,12 @@ def gen_interpreter_redispatch(fn):
   rettype = dispatcher_sig.returns_type().cpp_type()
 
   if rettype == 'at::Tensor':
-    code = f'results[i] = {redispatch};\n  break;'
     inplace = False
 
-  # in-place op
   else:
-    assert rettype == 'at::Tensor &' or rettype == 'const at::Tensor &'
+    assert rettype in ['at::Tensor &', 'const at::Tensor &']
     inplace = True
-    code = f'results[i] = {redispatch};\n  break;'
-
+  code = f'results[i] = {redispatch};\n  break;'
   signature = dispatcher_sig.type()
   fn_ptr = f'at::redispatch::{sig.name()}'
   key = inplace, code, signature
@@ -590,10 +578,10 @@ for ((inplace, code, sig), entries) in interpreter_code:
     code = code.replace('<FN>', entries[0][1])
     print(f'  {code}\n', file=fd5)
   elif len(entries) == 2:
-    ptr = sig.replace(' (', f'(*ptr)(DispatchKeySet, ')
+    ptr = sig.replace(' (', '(*ptr)(DispatchKeySet, ')
     print(f'  {{{ptr} = {entries[0][1]};', file=fd5)
     print(f'  if (op.id == {entries[1][0]}) ptr = {entries[1][1]};', file=fd5)
-    code = code.replace('<FN>', f'ptr')
+    code = code.replace('<FN>', 'ptr')
     print(f'  {code}}}\n', file=fd5)
   else:
     table = f'redispatch_ptrs_{table_id}'

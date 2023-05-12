@@ -16,9 +16,9 @@ class Command:
     def toShell(self, file):
         for arg in self.args:
             if "'" not in arg:
-                quoted = "'%s'" % arg
+                quoted = f"'{arg}'"
             elif '"' not in arg and '$' not in arg:
-                quoted = '"%s"' % arg
+                quoted = f'"{arg}"'
             else:
                 raise NotImplementedError('Unable to quote %r' % arg)
             file.write(quoted)
@@ -31,9 +31,9 @@ class Command:
 
         for r in self.redirects:
             if len(r[0]) == 1:
-                file.write("%s '%s'" % (r[0][0], r[1]))
+                file.write(f"{r[0][0]} '{r[1]}'")
             else:
-                file.write("%s%s '%s'" % (r[0][1], r[0][0], r[1]))
+                file.write(f"{r[0][1]}{r[0][0]} '{r[1]}'")
 
 class GlobItem:
     def __init__(self, pattern):
@@ -43,10 +43,7 @@ class GlobItem:
         return self.pattern
 
     def __eq__(self, other):
-        if not isinstance(other, Command):
-            return False
-
-        return (self.pattern == other.pattern)
+        return (self.pattern == other.pattern) if isinstance(other, Command) else False
 
     def resolve(self, cwd):
         import glob
@@ -56,7 +53,7 @@ class GlobItem:
         else:
             abspath = os.path.join(cwd, self.pattern)
         results = glob.glob(abspath)
-        return [self.pattern] if len(results) == 0 else results
+        return [self.pattern] if not results else results
 
 class Pipeline:
     def __init__(self, commands, negate=False, pipe_err=False):

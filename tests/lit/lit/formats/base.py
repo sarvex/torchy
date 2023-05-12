@@ -37,10 +37,7 @@ class OneCommandPerFileTest(TestFormat):
 
     def __init__(self, command, dir, recursive=False,
                  pattern=".*", useTempInput=False):
-        if isinstance(command, str):
-            self.command = [command]
-        else:
-            self.command = list(command)
+        self.command = [command] if isinstance(command, str) else list(command)
         if dir is not None:
             dir = str(dir)
         self.dir = dir
@@ -107,8 +104,7 @@ class OneCommandPerFileTest(TestFormat):
             return lit.Test.PASS,''
 
         # Try to include some useful information.
-        report = """Command: %s\n""" % ' '.join(["'%s'" % a
-                                                 for a in cmd])
+        report = ("""Command: %s\n""" % ' '.join([f"'{a}'" for a in cmd]))
         if self.useTempInput:
             report += """Temporary File: %s\n""" % tmp.name
             report += "--\n%s--\n""" % open(tmp.name).read()

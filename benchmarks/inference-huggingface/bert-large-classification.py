@@ -14,7 +14,7 @@ txt = [
   'Worst purchase of my life!!',
   "Don't be rude sir",
 ]
-txt = txt * int(1000 / len(txt))
+txt *= 1000 // len(txt)
 
 #nlp = pipeline('sentiment-analysis')
 nlp = TextClassificationPipeline(

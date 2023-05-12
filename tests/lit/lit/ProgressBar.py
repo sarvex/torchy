@@ -110,29 +110,24 @@ class TerminalController:
         self.COLS = curses.tigetnum('cols')
         self.LINES = curses.tigetnum('lines')
         self.XN = curses.tigetflag('xenl')
-        
+
         # Look up string capabilities.
         for capability in self._STRING_CAPABILITIES:
             (attrib, cap_name) = capability.split('=')
             setattr(self, attrib, self._tigetstr(cap_name) or '')
 
-        # Colors
-        set_fg = self._tigetstr('setf')
-        if set_fg:
+        if set_fg := self._tigetstr('setf'):
             for i,color in zip(range(len(self._COLORS)), self._COLORS):
                 setattr(self, color, self._tparm(set_fg, i))
-        set_fg_ansi = self._tigetstr('setaf')
-        if set_fg_ansi:
+        if set_fg_ansi := self._tigetstr('setaf'):
             for i,color in zip(range(len(self._ANSICOLORS)), self._ANSICOLORS):
                 setattr(self, color, self._tparm(set_fg_ansi, i))
-        set_bg = self._tigetstr('setb')
-        if set_bg:
-            for i,color in zip(range(len(self._COLORS)), self._COLORS):
-                setattr(self, 'BG_'+color, self._tparm(set_bg, i))
-        set_bg_ansi = self._tigetstr('setab')
-        if set_bg_ansi:
-            for i,color in zip(range(len(self._ANSICOLORS)), self._ANSICOLORS):
-                setattr(self, 'BG_'+color, self._tparm(set_bg_ansi, i))
+        if set_bg := self._tigetstr('setb'):
+            for i, color in zip(range(len(self._COLORS)), self._COLORS):
+                setattr(self, f'BG_{color}', self._tparm(set_bg, i))
+        if set_bg_ansi := self._tigetstr('setab'):
+            for i, color in zip(range(len(self._ANSICOLORS)), self._ANSICOLORS):
+                setattr(self, f'BG_{color}', self._tparm(set_bg_ansi, i))
 
     def _tparm(self, arg, index):
         import curses
@@ -144,10 +139,7 @@ class TerminalController:
         # these, so strip them out.
         import curses
         cap = curses.tigetstr(cap_name)
-        if cap is None:
-            cap = ''
-        else:
-            cap = cap.decode('utf-8')
+        cap = '' if cap is None else cap.decode('utf-8')
         return re.sub(r'\$<\d+>[/*]?', '', cap)
 
     def render(self, template):
@@ -160,8 +152,7 @@ class TerminalController:
 
     def _render_sub(self, match):
         s = match.group()
-        if s == '$$': return s
-        else: return getattr(self, s[2:-1])
+        return s if s == '$$' else getattr(self, s[2:-1])
 
 #######################################################################
 # Example use case: progress bar
@@ -263,7 +254,7 @@ class ProgressBar:
         if len(message) < self.width:
             message = message + ' '*(self.width - len(message))
         else:
-            message = '... ' + message[-(self.width-4):]
+            message = f'... {message[-(self.width - 4):]}'
         sys.stdout.write(
             self.BOL + self.term.UP + self.term.CLEAR_EOL +
             (self.bar % (prefix, '='*n, '-'*(barWidth-n), suffix)) +

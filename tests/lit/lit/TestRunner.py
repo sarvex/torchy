@@ -164,14 +164,12 @@ def executeShCmd(cmd, shenv, results, timeout=0):
     timeoutHelper.cancel()
     timeoutInfo = None
     if timeoutHelper.timeoutReached():
-        timeoutInfo = 'Reached timeout of {} seconds'.format(timeout)
+        timeoutInfo = f'Reached timeout of {timeout} seconds'
 
     return (finalExitCode, timeoutInfo)
 
 def expand_glob(arg, cwd):
-    if isinstance(arg, GlobItem):
-        return sorted(arg.resolve(cwd))
-    return [arg]
+    return sorted(arg.resolve(cwd)) if isinstance(arg, GlobItem) else [arg]
 
 def expand_glob_expressions(args, cwd):
     result = [args[0]]
@@ -283,7 +281,7 @@ def executeBuiltinEcho(cmd, shenv):
         # When we open as binary, however, this also means that we have to write
         # 'bytes' objects to stdout instead of 'str' objects.
         encode = lit.util.to_bytes
-        stdout = open(stdout.name, stdout.mode + 'b')
+        stdout = open(stdout.name, f'{stdout.mode}b')
         opened_files.append((None, None, stdout, None))
 
     # Implement echo flags. We only support -e and -n, and not yet in
@@ -319,9 +317,7 @@ def executeBuiltinEcho(cmd, shenv):
     for (name, mode, f, path) in opened_files:
         f.close()
 
-    if not is_redirected:
-        return stdout.getvalue()
-    return ""
+    return stdout.getvalue() if not is_redirected else ""
 
 def executeBuiltinMkdir(cmd, cmd_shenv):
     """executeBuiltinMkdir - Create new directories."""
@@ -329,7 +325,7 @@ def executeBuiltinMkdir(cmd, cmd_shenv):
     try:
         opts, args = getopt.gnu_getopt(args, 'p')
     except getopt.GetoptError as err:
-        raise InternalShellError(cmd, "Unsupported: 'mkdir':  %s" % str(err))
+        raise InternalShellError(cmd, f"Unsupported: 'mkdir':  {str(err)}")
 
     parent = False
     for o, a in opts:
@@ -362,7 +358,7 @@ def executeBuiltinDiff(cmd, cmd_shenv):
     try:
         opts, args = getopt.gnu_getopt(args, "wbur", ["strip-trailing-cr"])
     except getopt.GetoptError as err:
-        raise InternalShellError(cmd, "Unsupported: 'diff':  %s" % str(err))
+        raise InternalShellError(cmd, f"Unsupported: 'diff':  {str(err)}")
 
     filelines, filepaths, dir_trees = ([] for i in range(3))
     ignore_all_space = False
@@ -551,7 +547,7 @@ def executeBuiltinDiff(cmd, cmd_shenv):
         for file in args:
             if not os.path.isabs(file):
                 file = os.path.realpath(os.path.join(cmd_shenv.cwd, file))
-    
+
             if recursive_diff:
                 dir_trees.append(getDirTree(file))
             else:
@@ -574,7 +570,7 @@ def executeBuiltinRm(cmd, cmd_shenv):
     try:
         opts, args = getopt.gnu_getopt(args, "frR", ["--recursive"])
     except getopt.GetoptError as err:
-        raise InternalShellError(cmd, "Unsupported: 'rm':  %s" % str(err))
+        raise InternalShellError(cmd, f"Unsupported: 'rm':  {str(err)}")
 
     force = False
     recursive = False
@@ -614,7 +610,7 @@ def executeBuiltinRm(cmd, cmd_shenv):
                              stat.S_IMODE(os.stat(path).st_mode) | stat.S_IWRITE)
                 os.remove(path)
         except OSError as err:
-            stderr.write("Error: 'rm' command failed, %s" % str(err))
+            stderr.write(f"Error: 'rm' command failed, {str(err)}")
             exitCode = 1
     return ShellCommandResult(cmd, "", stderr.getvalue(), exitCode, False)
 
@@ -638,7 +634,7 @@ def processRedirects(cmd, stdin_source, cmd_shenv, opened_files):
             redirects[2] = [filename, 'a', None]
         elif op == ('>&',2) and filename in '012':
             redirects[2] = redirects[int(filename)]
-        elif op == ('>&',) or op == ('&>',):
+        elif op in [('>&',), ('&>',)]:
             redirects[1] = redirects[2] = [filename, 'w', None]
         elif op == ('>',):
             redirects[1] = [filename, 'w', None]

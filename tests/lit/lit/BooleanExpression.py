@@ -48,42 +48,40 @@ class BooleanExpression:
         while True:
             m = re.match(BooleanExpression.Pattern, string)
             if m is None:
-                if string == "":
-                    yield BooleanExpression.END;
-                    return
-                else:
+                if string != "":
                     raise ValueError("couldn't parse text: %r" % string)
 
-            token = m.group(1)
-            string = m.group(2)
+                yield BooleanExpression.END;
+                return
+            token = m[1]
+            string = m[2]
             yield token
 
     def quote(self, token):
-        if token is BooleanExpression.END:
-            return '<end of expression>'
-        else:
-            return repr(token)
+        return '<end of expression>' if token is BooleanExpression.END else repr(token)
 
     def accept(self, t):
-        if self.token == t:
-            self.token = next(self.tokens)
-            return True
-        else:
+        if self.token != t:
             return False
+        self.token = next(self.tokens)
+        return True
 
     def expect(self, t):
-        if self.token == t:
-            if self.token != BooleanExpression.END:
-                self.token = next(self.tokens)
-        else:
+        if self.token != t:
             raise ValueError("expected: %s\nhave: %s" %
                              (self.quote(t), self.quote(self.token)))
+        if self.token != BooleanExpression.END:
+            self.token = next(self.tokens)
 
     def isIdentifier(self, t):
-        if (t is BooleanExpression.END or t == '&&' or t == '||' or
-            t == '!' or t == '(' or t == ')'):
-            return False
-        return True
+        return (
+            t is not BooleanExpression.END
+            and t != '&&'
+            and t != '||'
+            and t != '!'
+            and t != '('
+            and t != ')'
+        )
 
     def parseNOT(self):
         if self.accept('!'):
@@ -186,7 +184,7 @@ class TestBooleanExpression(unittest.TestCase):
             BooleanExpression.evaluate(expr, {})
             self.fail("expression %r didn't cause an exception" % expr)
         except ValueError as e:
-            if -1 == str(e).find(error):
+            if error not in str(e):
                 self.fail(("expression %r caused the wrong ValueError\n" +
                            "actual error was:\n%s\n" +
                            "expected error was:\n%s\n") % (expr, e, error))

@@ -45,9 +45,13 @@ class LitConfig(object):
         # Configuration files to look for when discovering test suites.
         self.config_prefix = config_prefix or 'lit'
         self.suffixes = ['cfg.py', 'cfg']
-        self.config_names = ['%s.%s' % (self.config_prefix,x) for x in self.suffixes]
-        self.site_config_names = ['%s.site.%s' % (self.config_prefix,x) for x in self.suffixes]
-        self.local_config_names = ['%s.local.%s' % (self.config_prefix,x) for x in self.suffixes]
+        self.config_names = [f'{self.config_prefix}.{x}' for x in self.suffixes]
+        self.site_config_names = [
+            f'{self.config_prefix}.site.{x}' for x in self.suffixes
+        ]
+        self.local_config_names = [
+            f'{self.config_prefix}.local.{x}' for x in self.suffixes
+        ]
 
         self.numErrors = 0
         self.numWarnings = 0
